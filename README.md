@@ -31,7 +31,7 @@ sudo ecryptfs-migrate-home -u cryptouser
 
 Домашний каталог после шифрования
 
-![Scan](cryptouser_after.png)
+![Scan1](screnshots/crypto.png)
 
 ## Задание 2. LUKS-шифрование раздела
 
