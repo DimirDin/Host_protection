@@ -28,20 +28,18 @@ sudo ecryptfs-migrate-home -u cryptouser
 
 Скриншоты
 
-Домашний каталог до шифрования
-
-screenshots/cryptouser_before.png
 
 Домашний каталог после шифрования
 
-screenshots/cryptouser_after.png
+![Scan](cryptouser_after.png)
 
 ## Задание 2. LUKS-шифрование раздела
 
 ### 2.1 Установка необходимых пакетов
 
 ```bash
-sudo apt install cryptsetup
+sudo apt update
+sudo apt install cryptsetup -y
 ```
 
 ### 2.2 Создание раздела 100 Мб
@@ -49,32 +47,117 @@ sudo apt install cryptsetup
 Пример: создание файла-раздела и подключение через loop-устройство
 
 ```bash
+# Создаем файл размером 100 МБ
 dd if=/dev/zero of=/tmp/luks-volume bs=1M count=100
-sudo losetup /dev/loop0 /tmp/luks-volume
+
+# Проверяем свободные loop-устройства
+sudo losetup -f
+
+# Подключаем файл как блочное устройство
+sudo losetup /dev/loop10 /tmp/luks-volume
+
+# Проверяем подключение
+sudo losetup -a | grep loop10
 ```
 
 ### 2.3 Шифрование раздела LUKS
 
 ```bash
-sudo cryptsetup luksFormat /dev/loop0
-sudo cryptsetup open /dev/loop0 myencrypted
+# Форматируем раздел как LUKS
+sudo cryptsetup luksFormat /dev/loop10
+
+# Открываем зашифрованный раздел
+sudo cryptsetup open /dev/loop10 myencrypted
+
+# Создаем файловую систему на зашифрованном разделе
 sudo mkfs.ext4 /dev/mapper/myencrypted
 ```
 
 ### 2.4 Монтирование и проверка
 
 ```bash
-sudo mkdir /mnt/encrypted
+# Создаем точку монтирования
+sudo mkdir -p /mnt/encrypted
+
+# Монтируем зашифрованный раздел
 sudo mount /dev/mapper/myencrypted /mnt/encrypted
+
+# Проверяем размер и точку монтирования
 df -h /mnt/encrypted
+
+# Проверяем статус LUKS устройства
+sudo cryptsetup status myencrypted
 ```
 
-Скиншоты
+### 2.5 Тестирование работы с зашифрованным разделом
 
-Процесс создания и шифрования раздела
+```bash
+# Создаем тестовый файл
+echo "Тестовые данные в зашифрованном разделе" | sudo tee /mnt/encrypted/test-file.txt
 
-screenshots/luks_step1.png
+# Проверяем содержимое
+sudo cat /mnt/encrypted/test-file.txt
 
-Монтирование зашифрованного раздела
+# Проверяем список файлов
+sudo ls -la /mnt/encrypted/
+```
 
-screenshots/luks_step2.png
+### 2.6 Размонтирование и закрытие раздела
+
+```bash
+# Размонтируем раздел
+sudo umount /mnt/encrypted
+
+# Закрываем LUKS устройство
+sudo cryptsetup close myencrypted
+
+# Отключаем loop-устройство
+sudo losetup -d /dev/loop10
+```
+### 2.7 Проверка повторного доступа
+
+Подключаем loop-устройство снова
+
+```bash
+
+sudo losetup /dev/loop10 /tmp/luks-volume
+```
+
+Пытаемся получить доступ без пароля (должно не получиться)
+
+```bash
+sudo mount /dev/loop10 /mnt/encrypted 2>&1 | head -3
+```
+Открываем LUKS с паролем
+```bash
+sudo cryptsetup open /dev/loop10 myencrypted
+```
+
+Монтируем и проверяем данные
+
+```bash
+sudo mount /dev/mapper/myencrypted /mnt/encrypted
+sudo cat /mnt/encrypted/test-file.txt
+```
+
+### 2.8 Очистка после тестирования
+
+Размонтируем и закрываем
+```bash
+sudo umount /mnt/encrypted
+sudo cryptsetup close myencrypted
+sudo losetup -d /dev/loop10
+```
+
+Удаляем тестовый файл
+```bash
+sudo rm /tmp/luks-volume
+```
+Удаляем точку монтирования
+```bash
+sudo rmdir /mnt/encrypted
+```
+
+Скиншот
+
+![Scan](screenshots/luks.png)
